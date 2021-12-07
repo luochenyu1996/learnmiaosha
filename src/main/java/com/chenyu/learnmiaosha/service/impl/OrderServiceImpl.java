@@ -59,7 +59,7 @@ public class OrderServiceImpl implements IOrderService {
         if(amount <= 0 || amount > 99){
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"数量信息不正确");
         }
-        //2.落单减库存
+        //2.落单减库存  todo  itemService.decreaseStock 是否有原子性？
         //要进行锁库存 只要能够落单  则进行减去库存  而不是其他减库存的逻辑
         boolean result = itemService.decreaseStock(itemId,amount);
         if(!result){
@@ -71,7 +71,8 @@ public class OrderServiceImpl implements IOrderService {
         orderModel.setItemId(itemId);
         orderModel.setAmount(amount);
         if(promoId != null){
-            orderModel.setItemPrice(itemModel.getPromoModel().getPromoItemPrice());
+            BigDecimal promoItemPrice = itemModel.getPromoModel().getPromoItemPrice();
+            orderModel.setItemPrice(promoItemPrice);
         }else{
             orderModel.setItemPrice(itemModel.getPrice());
         }

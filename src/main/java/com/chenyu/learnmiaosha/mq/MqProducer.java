@@ -29,7 +29,9 @@ import java.util.Map;
 @Component
 public class MqProducer {
 
-    private TransactionMQProducer transactionMQProducer;
+    private DefaultMQProducer producer;
+
+
 
     @Value("${mq.nameserver.addr}")
     private String nameAddr;
@@ -43,26 +45,39 @@ public class MqProducer {
     @Autowired
     private StockLogDOMapper stockLogDOMapper;
 
+    private TransactionMQProducer transactionMQProducer;
+
 
     /**
      * 这里实现了redis的扣减逻辑
+     *
+     * bean 初始化完成后调用
      *
      */
     @PostConstruct
     public void init() throws MQClientException {
         //做mq producer的初始化
+
+        //做mq producer的初始化
+        producer = new DefaultMQProducer("producer_group");
+        producer.setNamesrvAddr(nameAddr);
+        producer.start();
+
+
+
         transactionMQProducer = new TransactionMQProducer(Constant.PRODUCER_GROUP_STOCK);
         transactionMQProducer.setNamesrvAddr(nameAddr);
         transactionMQProducer.start();
         transactionMQProducer.setTransactionListener(new TransactionListener() {
 
             /**
-             * 半消息发送成功将会自动执行该逻辑
+             * 当消息处于这prepare状态的时候 会去执行这段逻辑
+             *
+             * redis 中库存扣减
              *
              */
             @Override
             public LocalTransactionState executeLocalTransaction(Message msg, Object arg) {
-                //真正要做的事  创建订单
                 Integer itemId = (Integer) ((Map)arg).get("itemId");
                 Integer promoId = (Integer) ((Map)arg).get("promoId");
                 Integer userId = (Integer) ((Map)arg).get("userId");
@@ -126,9 +141,9 @@ public class MqProducer {
         argsMap.put("userId",userId);
         argsMap.put("promoId",promoId);
         argsMap.put("stockLogId",stockLogId);
-        Message message = new Message(topicName,"increase",
-                JSON.toJSON(bodyMap).toString().getBytes(Charset.forName("UTF-8")));
+        Message message = new Message(topicName,"increase", JSON.toJSON(bodyMap).toString().getBytes(Charset.forName("UTF-8")));
         TransactionSendResult sendResult = null;
+
         try {
             sendResult = transactionMQProducer.sendMessageInTransaction(message,argsMap);
         } catch (MQClientException e) {
@@ -143,7 +158,35 @@ public class MqProducer {
         }else{
             return false;
         }
+    }
 
+
+    /**
+     * 用来做test
+     *
+     */
+    public boolean asyncReduceStock(Integer itemId,Integer amount)  {
+        Map<String,Object> bodyMap = new HashMap<>();
+        bodyMap.put("itemId",itemId);
+        bodyMap.put("amount",amount);
+
+        Message message = new Message(topicName,"mytag", JSON.toJSON(bodyMap).toString().getBytes(Charset.forName("UTF-8")));
+        try {
+            producer.send(message);
+        } catch (MQClientException e) {
+            e.printStackTrace();
+            return false;
+        } catch (RemotingException e) {
+            e.printStackTrace();
+            return false;
+        } catch (MQBrokerException e) {
+            e.printStackTrace();
+            return false;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
     }
 
 }

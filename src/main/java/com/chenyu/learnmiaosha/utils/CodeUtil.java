@@ -1,4 +1,4 @@
-package com.chenyu.learnmiaosha;
+package com.chenyu.learnmiaosha.utils;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

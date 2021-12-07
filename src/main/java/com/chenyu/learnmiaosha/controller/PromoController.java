@@ -1,6 +1,6 @@
 package com.chenyu.learnmiaosha.controller;
 
-import com.chenyu.learnmiaosha.CodeUtil;
+import com.chenyu.learnmiaosha.utils.CodeUtil;
 import com.chenyu.learnmiaosha.constant.Constant;
 import com.chenyu.learnmiaosha.execption.BusinessException;
 import com.chenyu.learnmiaosha.execption.EmBusinessError;

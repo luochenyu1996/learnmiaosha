@@ -107,7 +107,10 @@ public class ItemServiceImpl implements IItemService {
         ItemModel itemModel = convertModelFromDataObject(itemDO,itemStockDO);
         //获取活动商品信息
         PromoModel promoModel = promoService.getPromoByItemId(itemModel.getId());
-        if(promoModel != null && promoModel.getStatus().intValue() != 3){
+
+        //商品没有开始才可以发布活动
+        //todo 这里是为了测试方便进行了条件的放宽
+        if(promoModel != null /*&& promoModel.getStatus().intValue() != 3*/){
             itemModel.setPromoModel(promoModel);
         }
         return itemModel;

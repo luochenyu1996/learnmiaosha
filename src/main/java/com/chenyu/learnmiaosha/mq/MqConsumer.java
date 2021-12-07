@@ -41,21 +41,20 @@ public class MqConsumer {
     public void init() throws MQClientException {
         consumer = new DefaultMQPushConsumer(Constant.CONSUMER_GROUP_STOCK);
         consumer.setNamesrvAddr(nameAddr);
-        consumer.subscribe(topicName,"*");
-
+        consumer.subscribe(topicName,"increase");
         consumer.registerMessageListener((MessageListenerConcurrently) (msgs, context) -> {
             //实现库存真正到数据库内扣减的逻辑
             Message msg = msgs.get(0);
+            System.out.println("消息接受成功");
+            System.out.println("topic:"+msg.getTopic());
             String jsonString  = new String(msg.getBody());
+            System.out.println(jsonString);
             Map<String,Object>map = JSON.parseObject(jsonString, Map.class);
             Integer itemId = (Integer) map.get("itemId");
             Integer amount = (Integer) map.get("amount");
-            //收到消息后对数据库进行扣减
             itemStockDOMapper.decreaseStock(itemId,amount);
             return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
         });
-
         consumer.start();
-
     }
 }

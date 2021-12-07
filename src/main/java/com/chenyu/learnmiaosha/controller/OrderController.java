@@ -1,6 +1,5 @@
 package com.chenyu.learnmiaosha.controller;
 
-import com.chenyu.learnmiaosha.CodeUtil;
 import com.chenyu.learnmiaosha.constant.Constant;
 import com.chenyu.learnmiaosha.execption.BusinessException;
 import com.chenyu.learnmiaosha.execption.EmBusinessError;
@@ -8,22 +7,14 @@ import com.chenyu.learnmiaosha.mq.MqProducer;
 import com.chenyu.learnmiaosha.pojo.model.UserModel;
 import com.chenyu.learnmiaosha.response.CommonReturnType;
 import com.chenyu.learnmiaosha.service.IItemService;
-import com.chenyu.learnmiaosha.service.IPromoService;
 import com.google.common.util.concurrent.RateLimiter;
-import org.apache.tomcat.util.bcel.Const;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
-import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.awt.image.RenderedImage;
-import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.*;
 
 /**
@@ -52,7 +43,7 @@ public class OrderController extends BaseController{
 
     /**
      * google 的令牌桶
-     *
+     * todo  这里不做令牌桶限流
      */
     private RateLimiter orderCreateRateLimiter;
 
@@ -67,7 +58,6 @@ public class OrderController extends BaseController{
     @PostConstruct
     public void init(){
         executorService = Executors.newFixedThreadPool(20);
-        //限流
         orderCreateRateLimiter = RateLimiter.create(Constant.RATELIMITER_COUNT);
 
     }
@@ -97,7 +87,8 @@ public class OrderController extends BaseController{
         if(userModel == null){
             throw new BusinessException(EmBusinessError.USER_NOT_LOGIN,"用户还未登陆，不能下单");
         }
-        //校验秒杀令牌是否正确
+//        校验秒杀令牌是否正确
+//        暂时不对秒杀令牌做验证 todo
         if(promoId != null){
             String inRedisPromoToken = (String) redisTemplate.opsForValue().get("promo_token_"+promoId+"_userid_"+userModel.getId()+"_itemid_"+itemId);
             if(inRedisPromoToken == null){
@@ -108,10 +99,12 @@ public class OrderController extends BaseController{
             }
         }
         //同步调用线程池的submit方法
+
         //拥塞窗口为20的等待队列，用来队列化泄洪
         Future<Object> future = executorService.submit(() -> {
             //加入库存流水init状态
             String stockLogId = itemService.initStockLog(itemId,amount);
+
             //再去完成对应的下单事务型消息机制
             if(!mqProducer.transactionAsyncReduceStock(userModel.getId(),itemId,promoId,amount,stockLogId)){
                 throw new BusinessException(EmBusinessError.UNKNOWN_ERROR,"下单失败");
